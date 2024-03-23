@@ -1,63 +1,63 @@
-const backendURL = "http://localhost:3001/";
-const inputField = document.getElementById("taskInput");
-// inputField.disabled = true; 
-const addButton = document.getElementById("addButton");
-const taskList = document.getElementById("taskList");
+const BACKEND_ROOT_URL = 'http://localhost:3001';
+import { Todos } from './class/Todos.js';
 
-function renderTask(task) {
-  // Create a list item element
-  const taskItem = document.createElement("li");
+const todos = new Todos(BACKEND_ROOT_URL);
 
-  // Set the text content of the list item to the task description
-  taskItem.textContent = task.description;
+const list = document.querySelector('ul');
+const input = document.querySelector('input');
 
-  // Append the list item to the task list
-  taskList.appendChild(taskItem);
+input.disabled = true;
+
+const renderTask = (task) => {
+    const li = document.createElement('li');
+    li.setAttribute('class', 'list-group-item');
+    li.innerHTML = task.getText(); 
+    list.appendChild(li);
 }
 
-function getTasks() {
-  // Fetch tasks from the backend
-  fetch(backendURL)
-    // Parse the JSON response
-    .then((response) => response.json())
-    .then((data) => {
-      // Iterate over each task and render it
-      data.forEach((task) => renderTask(task));
-
-      // Enable the input field after rendering tasks
-      inputField.disabled = false;
+const getTasks = () => {
+    todos.getTasks().then((tasks) => {
+        tasks.forEach(task => {
+            renderTask(task)
+        })
+        input.disabled = false;
+    }).catch ((error) =>{
+        alert(error)
     })
-    .catch((error) => console.error("Error fetching tasks:", error)); // Handle errors
 }
 
-function saveTask(description) {
-  return fetch(backendURL + "new", {
-    method: "POST", // HTTP method is set to POST
-    headers: {
-      "Content-Type": "application/json", // Specify that the content type is JSON
-    },
-    body: JSON.stringify({ description }), // Convert data to JSON format
-  });
+const saveTask = async (task) => {
+    try {
+        const response = await fetch(`${BACKEND_ROOT_URL}/new`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ description: task })
+        });
+        if (!response.ok) {
+            throw new Error('Failed to save task');
+        }
+        const data = await response.json();
+        renderTask(data);
+        input.value = '';
+    } catch (error) {
+        console.error(error);
+    }
 }
 
-inputField.addEventListener("keypress", (event) => {
-  if (event.key === "Enter") {
-    addButton.click();
-  }
-});
 
-addButton.addEventListener("click", () => {
-  const newTaskDescription = inputField.value.trim();
-  if (newTaskDescription !== "") {
-    renderTask({ description: newTaskDescription }); // Render task immediately
-    saveTask(newTaskDescription)
-      .then(() => {
-        inputField.value = ""; // Clear input field on successful save
-      })
-      .catch((error) => console.error("Error saving task:", error));
-  } else {
-    alert("Please enter a task description.");
-  }
-});
 
+input.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const task = input.value.trim();
+        if (task !== '') {
+            todos.addTask(task).then((task) => {
+                renderTask(task)
+                input.value = '';
+            })
+        }    
+    }
+});
 getTasks();
