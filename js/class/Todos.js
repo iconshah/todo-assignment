@@ -10,42 +10,47 @@ class Todos {
 
   getTasks = () => {
     return new Promise(async (resolve, reject) => {
-      fetch(this.#backend_url)
-        .then((response) => response.json())
-        .then(
-          (json) => {
-            this.#readJson(json);
-            resolve(this.#tasks);
-          },
-          (error) => {
-            reject(error);
-          }
-        );
+      try {
+        const response = await fetch(`${this.#backend_url}`);
+        const tasksJson = await response.json();
+        this.#readJson(tasksJson);
+        resolve(this.#tasks);
+      } catch (error) {
+        reject(error);
+      }
     });
   };
-  addTask = (text) => {
-    return new Promise(async (resolve, reject) => {
-      fetch(`${this.#backend_url}/new`, {
+
+  addTask = async (text) => {
+    try {
+      const response = await fetch(`${this.#backend_url}/new`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ description: text }),
-      })
-        .then((response) => response.json())
-        .then(
-          (json) => {
-            resolve(this.#addToArray(json.id, json.description));
-          },
-          (error) => {
-            reject(error);
-          }
-        );
-    });
+      });
+      const newTaskJson = await response.json();
+      return this.#addToArray(newTaskJson.id, newTaskJson.description);
+    } catch (error) {
+      throw new Error("Failed to save task");
+    }
   };
 
-  #readJson = (taskAsjson) => {
-    taskAsjson.forEach((node) => {
+  removeTask = async (id) => {
+    try {
+      await fetch(`${this.#backend_url}/delete/${id}`, {
+        method: "DELETE",
+      });
+      this.#removeFromArray(id);
+      return id;
+    } catch (error) {
+      throw new Error("Failed to remove task");
+    }
+  };
+
+  #readJson = (tasksJson) => {
+    tasksJson.forEach((node) => {
       const task = new Task(node.id, node.description);
       this.#tasks.push(task);
     });
@@ -55,6 +60,10 @@ class Todos {
     const task = new Task(id, text);
     this.#tasks.push(task);
     return task;
+  };
+
+  #removeFromArray = (id) => {
+    this.#tasks = this.#tasks.filter((task) => task.getId() !== id);
   };
 }
 
